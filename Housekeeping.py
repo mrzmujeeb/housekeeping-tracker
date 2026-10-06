@@ -53,7 +53,7 @@ RIGHT_TASKS = [
     {"name": "Colapsable Door to SCN", "options": ["OPEN", "LOCKED"]},
 ]
 
-# Set page layout to wide for better 3-column spacing
+# Set page layout to wide
 st.set_page_config(page_title="Housekeeping Tracker", layout="wide")
 
 # Centered Title
@@ -148,4 +148,31 @@ if (submitted or confirm_submitted) and not is_locked:
         })
     
     df = pd.concat([df, pd.DataFrame(new_rows)], ignore_index=True)
-    df.to_
+    df.to_excel(EXCEL_FILE, index=False)
+    
+    if confirm_submitted:
+        lock_today(formatted_date)
+        st.success("Tasks confirmed and locked! Reset is now permanently disabled for today.")
+    else:
+        st.success("Tasks saved successfully!")
+    
+    st.rerun()
+
+# Log View Header & Reset Action
+col_header, col_reset = st.columns([4, 1])
+
+with col_header:
+    st.subheader("Task History")
+
+with col_reset:
+    if st.button("🗑️ Reset All History", type="secondary", use_container_width=True, disabled=is_locked):
+        if os.path.exists(EXCEL_FILE):
+            os.remove(EXCEL_FILE)
+        st.success("Task history cleared!")
+        st.rerun()
+
+if is_locked:
+    st.info("🔒 Tasks have been confirmed for today. Reset function and editing are permanently locked for today.")
+
+# Display Task History Table
+st.dataframe(df, width="stretch")
