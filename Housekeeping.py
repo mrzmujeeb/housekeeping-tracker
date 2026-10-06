@@ -4,6 +4,7 @@ import datetime
 import os
 import json
 from zoneinfo import ZoneInfo
+from twilio.rest import Client
 
 EXCEL_FILE = "Housekeeping_Daily_Log.xlsx"
 STATUS_FILE = "lock_status.json"
@@ -61,6 +62,33 @@ def unlock_today(today_str):
                 json.dump(data, f)
         except Exception:
             pass
+
+# Function to send WhatsApp message via Twilio
+def send_whatsapp_report(date_str, user_name, task_data):
+    try:
+        account_sid = st.secrets["TWILIO_ACCOUNT_SID"]
+        auth_token = st.secrets["TWILIO_AUTH_TOKEN"]
+        twilio_number = st.secrets["TWILIO_WHATSAPP_NUMBER"]  # e.g., "whatsapp:+14155238886"
+        target_number = st.secrets["MY_WHATSAPP_NUMBER"]      # e.g., "whatsapp:+91XXXXXXXXXX"
+
+        client = Client(account_sid, auth_token)
+
+        message_body = f"📋 *Housekeeping Daily Report*\n"
+        message_body += f"📅 *Date:* {date_str}\n"
+        message_body += f"👤 *Logged By:* {user_name}\n\n"
+        message_body += "*Task Summary:*\n"
+
+        for _, row in task_data.iterrows():
+            message_body += f"• {row['Task Name']}: *{row['Status']}*\n"
+
+        message = client.messages.create(
+            from_=twilio_number,
+            body=message_body,
+            to=target_number
+        )
+        return True, message.sid
+    except Exception as e:
+        return False, str(e)
 
 # LOGIN PAGE LOGIC
 if not st.session_state.authenticated:
@@ -199,7 +227,6 @@ with st.form("task_form"):
 
 # Handle Data Saving
 if (submitted or confirm_submitted) and not form_disabled:
-    # Captures current time strictly in IST
     ist_time = datetime.datetime.now(IST)
     timestamp = ist_time.strftime("%I:%M:%S %p")
     new_rows = []
@@ -222,6 +249,14 @@ if (submitted or confirm_submitted) and not form_disabled:
     if confirm_submitted:
         lock_today(formatted_date)
         st.success("Tasks confirmed and locked!")
+        
+        # Send automated WhatsApp Report
+        todays_log = pd.DataFrame(new_rows)
+        success, msg = send_whatsapp_report(formatted_date, current_user, todays_log)
+        if success:
+            st.success("📲 WhatsApp report sent automatically to Admin!")
+        else:
+            st.warning(f"Could not send WhatsApp report: {msg}")
     else:
         st.success("Tasks saved successfully!")
     
