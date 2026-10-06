@@ -27,7 +27,7 @@ RIGHT_TASKS = [
     {"name": "Colapsable Door to SCN", "options": ["OPEN", "LOCKED"]},
 ]
 
-# Set page layout to wide for better 3-column spacing on desktop/tablet
+# Set page layout to wide for better 3-column spacing
 st.set_page_config(page_title="Housekeeping Tracker", layout="wide")
 
 # Centered Title
@@ -110,7 +110,20 @@ if submitted:
     df = pd.concat([df, pd.DataFrame(new_rows)], ignore_index=True)
     df.to_excel(EXCEL_FILE, index=False)
     st.success("All tasks saved successfully!")
+    st.rerun()
 
-# Log View
-st.subheader("Task History")
+# Log View Header & Reset Action
+col_header, col_reset = st.columns([4, 1])
+
+with col_header:
+    st.subheader("Task History")
+
+with col_reset:
+    if st.button("🗑️ Reset All History", type="secondary", use_container_width=True):
+        if os.path.exists(EXCEL_FILE):
+            os.remove(EXCEL_FILE)
+        st.success("Task history cleared!")
+        st.rerun()
+
+# Display Task History Table
 st.dataframe(df, width="stretch")
