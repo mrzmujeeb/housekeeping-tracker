@@ -2,12 +2,34 @@ import streamlit as st
 import pandas as pd
 import datetime
 import os
+import json
 
 EXCEL_FILE = "Housekeeping_Daily_Log.xlsx"
+STATUS_FILE = "lock_status.json"
 
-# Initialize confirmation state
-if "tasks_confirmed" not in st.session_state:
-    st.session_state.tasks_confirmed = False
+# Function to check if today is locked
+def is_today_locked(today_str):
+    if os.path.exists(STATUS_FILE):
+        try:
+            with open(STATUS_FILE, "r") as f:
+                data = json.load(f)
+                return data.get(today_str, False)
+        except Exception:
+            return False
+    return False
+
+# Function to mark today as locked
+def lock_today(today_str):
+    data = {}
+    if os.path.exists(STATUS_FILE):
+        try:
+            with open(STATUS_FILE, "r") as f:
+                data = json.load(f)
+        except Exception:
+            data = {}
+    data[today_str] = True
+    with open(STATUS_FILE, "w") as f:
+        json.dump(data, f)
 
 # Grouping tasks logically into 3 sections
 LEFT_TASKS = [
@@ -48,6 +70,12 @@ else:
 
 # Date Selection (Locked strictly to today)
 today = datetime.date.today()
+formatted_date = today.strftime("%d-%m-%Y")
+formatted_day = today.strftime("%A")
+
+# Check persistent lock status for today
+is_locked = is_today_locked(formatted_date)
+
 selected_date = st.date_input(
     "Select Date", 
     value=today,
@@ -55,8 +83,6 @@ selected_date = st.date_input(
     max_value=today,
     disabled=True
 )
-formatted_date = selected_date.strftime("%d-%m-%Y")
-formatted_day = selected_date.strftime("%A")
 
 st.subheader(f"Tasks for {formatted_date} ({formatted_day})")
 
@@ -73,7 +99,7 @@ with st.form("task_form"):
             task_responses[task["name"]] = st.selectbox(
                 f"{task['name']}",
                 task["options"],
-                disabled=st.session_state.tasks_confirmed
+                disabled=is_locked
             )
 
     # Center Column
@@ -83,7 +109,7 @@ with st.form("task_form"):
             task_responses[task["name"]] = st.selectbox(
                 f"{task['name']}",
                 task["options"],
-                disabled=st.session_state.tasks_confirmed
+                disabled=is_locked
             )
 
     # Right Column
@@ -93,20 +119,20 @@ with st.form("task_form"):
             task_responses[task["name"]] = st.selectbox(
                 f"{task['name']}",
                 task["options"],
-                disabled=st.session_state.tasks_confirmed
+                disabled=is_locked
             )
 
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # Dual buttons inside form: Save / Confirm
+    # Dual buttons inside form
     btn_col1, btn_col2 = st.columns(2)
     with btn_col1:
-        submitted = st.form_submit_button("Save Current Selection", use_container_width=True, disabled=st.session_state.tasks_confirmed)
+        submitted = st.form_submit_button("Save Current Selection", use_container_width=True, disabled=is_locked)
     with btn_col2:
-        confirm_submitted = st.form_submit_button("✅ CONFIRM ALL TASKS", type="primary", use_container_width=True, disabled=st.session_state.tasks_confirmed)
+        confirm_submitted = st.form_submit_button("✅ CONFIRM ALL TASKS", type="primary", use_container_width=True, disabled=is_locked)
 
 # Handle Data Saving
-if submitted or confirm_submitted:
+if (submitted or confirm_submitted) and not is_locked:
     timestamp = datetime.datetime.now().strftime("%H:%M:%S")
     new_rows = []
     
@@ -122,32 +148,4 @@ if submitted or confirm_submitted:
         })
     
     df = pd.concat([df, pd.DataFrame(new_rows)], ignore_index=True)
-    df.to_excel(EXCEL_FILE, index=False)
-    
-    if confirm_submitted:
-        st.session_state.tasks_confirmed = True
-        st.success("Tasks confirmed and locked! History reset is now disabled.")
-    else:
-        st.success("Tasks saved successfully!")
-    
-    st.rerun()
-
-# Log View Header & Reset Action
-col_header, col_reset = st.columns([4, 1])
-
-with col_header:
-    st.subheader("Task History")
-
-with col_reset:
-    reset_disabled = st.session_state.tasks_confirmed
-    if st.button("🗑️ Reset All History", type="secondary", use_container_width=True, disabled=reset_disabled):
-        if os.path.exists(EXCEL_FILE):
-            os.remove(EXCEL_FILE)
-        st.success("Task history cleared!")
-        st.rerun()
-
-if st.session_state.tasks_confirmed:
-    st.info("🔒 Tasks have been confirmed for today. Reset function has been locked.")
-
-# Display Task History Table
-st.dataframe(df, width="stretch")
+    df.to_
