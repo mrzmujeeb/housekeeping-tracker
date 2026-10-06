@@ -5,6 +5,10 @@ import os
 
 EXCEL_FILE = "Housekeeping_Daily_Log.xlsx"
 
+# Initialize confirmation state
+if "tasks_confirmed" not in st.session_state:
+    st.session_state.tasks_confirmed = False
+
 # Grouping tasks logically into 3 sections
 LEFT_TASKS = [
     {"name": "Chairperson Room Door", "options": ["Closed", "Open"]},
@@ -68,7 +72,8 @@ with st.form("task_form"):
         for task in LEFT_TASKS:
             task_responses[task["name"]] = st.selectbox(
                 f"{task['name']}",
-                task["options"]
+                task["options"],
+                disabled=st.session_state.tasks_confirmed
             )
 
     # Center Column
@@ -77,7 +82,8 @@ with st.form("task_form"):
         for task in CENTER_TASKS:
             task_responses[task["name"]] = st.selectbox(
                 f"{task['name']}",
-                task["options"]
+                task["options"],
+                disabled=st.session_state.tasks_confirmed
             )
 
     # Right Column
@@ -86,13 +92,21 @@ with st.form("task_form"):
         for task in RIGHT_TASKS:
             task_responses[task["name"]] = st.selectbox(
                 f"{task['name']}",
-                task["options"]
+                task["options"],
+                disabled=st.session_state.tasks_confirmed
             )
 
     st.markdown("<br>", unsafe_allow_html=True)
-    submitted = st.form_submit_button("Submit All Tasks", use_container_width=True)
+    
+    # Dual buttons inside form: Save / Confirm
+    btn_col1, btn_col2 = st.columns(2)
+    with btn_col1:
+        submitted = st.form_submit_button("Save Current Selection", use_container_width=True, disabled=st.session_state.tasks_confirmed)
+    with btn_col2:
+        confirm_submitted = st.form_submit_button("✅ CONFIRM ALL TASKS", type="primary", use_container_width=True, disabled=st.session_state.tasks_confirmed)
 
-if submitted:
+# Handle Data Saving
+if submitted or confirm_submitted:
     timestamp = datetime.datetime.now().strftime("%H:%M:%S")
     new_rows = []
     
@@ -109,7 +123,13 @@ if submitted:
     
     df = pd.concat([df, pd.DataFrame(new_rows)], ignore_index=True)
     df.to_excel(EXCEL_FILE, index=False)
-    st.success("All tasks saved successfully!")
+    
+    if confirm_submitted:
+        st.session_state.tasks_confirmed = True
+        st.success("Tasks confirmed and locked! History reset is now disabled.")
+    else:
+        st.success("Tasks saved successfully!")
+    
     st.rerun()
 
 # Log View Header & Reset Action
@@ -119,11 +139,15 @@ with col_header:
     st.subheader("Task History")
 
 with col_reset:
-    if st.button("🗑️ Reset All History", type="secondary", use_container_width=True):
+    reset_disabled = st.session_state.tasks_confirmed
+    if st.button("🗑️ Reset All History", type="secondary", use_container_width=True, disabled=reset_disabled):
         if os.path.exists(EXCEL_FILE):
             os.remove(EXCEL_FILE)
         st.success("Task history cleared!")
         st.rerun()
+
+if st.session_state.tasks_confirmed:
+    st.info("🔒 Tasks have been confirmed for today. Reset function has been locked.")
 
 # Display Task History Table
 st.dataframe(df, width="stretch")
