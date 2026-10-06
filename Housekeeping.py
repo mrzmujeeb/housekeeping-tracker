@@ -63,30 +63,42 @@ def unlock_today(today_str):
         except Exception:
             pass
 
-# Function to send WhatsApp message via Twilio
+# Function to send WhatsApp message via Twilio with ContentSid Fallback
 def send_whatsapp_report(date_str, user_name, task_data):
     try:
         account_sid = st.secrets["TWILIO_ACCOUNT_SID"]
         auth_token = st.secrets["TWILIO_AUTH_TOKEN"]
-        twilio_number = st.secrets["TWILIO_WHATSAPP_NUMBER"]  # e.g., "whatsapp:+17372508034"
-        target_number = st.secrets["MY_WHATSAPP_NUMBER"]      # e.g., "whatsapp:+91XXXXXXXXXX"
+        twilio_number = st.secrets["TWILIO_WHATSAPP_NUMBER"]
+        target_number = st.secrets["MY_WHATSAPP_NUMBER"]
 
         client = Client(account_sid, auth_token)
 
-        message_body = f"📋 *Housekeeping Daily Report*\n"
-        message_body += f"📅 *Date:* {date_str}\n"
-        message_body += f"👤 *Logged By:* {user_name}\n\n"
-        message_body += "*Task Summary:*\n"
-
+        summary_items = []
         for _, row in task_data.iterrows():
-            message_body += f"• {row['Task Name']}: *{row['Status']}*\n"
+            summary_items.append(f"• {row['Task Name']}: {row['Status']}")
+        tasks_text = "\n".join(summary_items)
 
-        message = client.messages.create(
-            from_=twilio_number,
-            to=target_number,
-            body=str(message_body)  # Explicitly stringified payload
-        )
-        return True, message.sid
+        message_body = f"📋 *Housekeeping Daily Report*\n📅 Date: {date_str}\n👤 Logged By: {user_name}\n\n*Tasks:*\n{tasks_text}"
+
+        try:
+            message = client.messages.create(
+                from_=twilio_number,
+                to=target_number,
+                body=message_body
+            )
+            return True, message.sid
+        except Exception as inner_e:
+            if "ContentSid" in str(inner_e):
+                message = client.messages.create(
+                    from_=twilio_number,
+                    to=target_number,
+                    content_sid="HX229f57a4e7f1f0a8edcf4193b2a59a7f",
+                    content_variables=json.dumps({"1": user_name, "2": date_str})
+                )
+                return True, message.sid
+            else:
+                raise inner_e
+
     except Exception as e:
         return False, str(e)
 
@@ -110,13 +122,12 @@ if not st.session_state.authenticated:
                     st.rerun()
                 else:
                     st.error("Invalid Username or Password")
-    st.stop()  # Halt execution until authenticated
+    st.stop()
 
 # MAIN APPLICATION (AUTHENTICATED)
 current_user = st.session_state.username
 is_admin = (current_user == "admin")
 
-# Sidebar Logout & Role Info
 st.sidebar.markdown(f"**Logged in as:** `{current_user.upper()}`")
 if is_admin:
     st.sidebar.success("👑 Admin Mode Active")
@@ -125,7 +136,6 @@ if st.sidebar.button("Logout", type="secondary"):
     st.session_state.username = None
     st.rerun()
 
-# Grouping tasks logically into 3 sections
 LEFT_TASKS = [
     {"name": "Chairperson Room Door", "options": ["Closed", "Open"]},
     {"name": "Chairperson Room Inside Light", "options": ["OFF", "ON"]},
@@ -147,25 +157,21 @@ RIGHT_TASKS = [
     {"name": "Colapsable Door to SCN", "options": ["OPEN", "LOCKED"]},
 ]
 
-# Centered Title
 st.markdown(
     "<h1 style='text-align: center;'>🧹 Housekeeping Task Management</h1>", 
     unsafe_allow_html=True
 )
 
-# Load existing data
 if os.path.exists(EXCEL_FILE):
     df = pd.read_excel(EXCEL_FILE)
 else:
     df = pd.DataFrame(columns=["Sl. No", "Date", "Day", "Task Name", "Status", "Timestamp", "Logged By"])
 
-# Date Selection using IST date
 now_ist = datetime.datetime.now(IST)
 today = now_ist.date()
 formatted_date = today.strftime("%d-%m-%Y")
 formatted_day = today.strftime("%A")
 
-# Check persistent lock status for today
 is_locked = is_today_locked(formatted_date)
 
 selected_date = st.date_input(
@@ -178,15 +184,12 @@ selected_date = st.date_input(
 
 st.subheader(f"Tasks for {formatted_date} ({formatted_day})")
 
-# Form inputs are disabled for non-admins if locked
 form_disabled = is_locked and not is_admin
 
 with st.form("task_form"):
     task_responses = {}
-    
     col1, col2, col3 = st.columns(3)
 
-    # Left Column
     with col1:
         st.markdown("### 🚪 Chairperson Area")
         for task in LEFT_TASKS:
@@ -196,7 +199,6 @@ with st.form("task_form"):
                 disabled=form_disabled
             )
 
-    # Center Column
     with col2:
         st.markdown("### 🏢 Office & Staff")
         for task in CENTER_TASKS:
@@ -206,7 +208,6 @@ with st.form("task_form"):
                 disabled=form_disabled
             )
 
-    # Right Column
     with col3:
         st.markdown("### 🚪 Scanning & Services")
         for task in RIGHT_TASKS:
@@ -218,14 +219,12 @@ with st.form("task_form"):
 
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # Dual buttons inside form
     btn_col1, btn_col2 = st.columns(2)
     with btn_col1:
         submitted = st.form_submit_button("Save Current Selection", use_container_width=True, disabled=form_disabled)
     with btn_col2:
         confirm_submitted = st.form_submit_button("✅ CONFIRM ALL TASKS", type="primary", use_container_width=True, disabled=form_disabled)
 
-# Handle Data Saving
 if (submitted or confirm_submitted) and not form_disabled:
     ist_time = datetime.datetime.now(IST)
     timestamp = ist_time.strftime("%I:%M:%S %p")
@@ -248,19 +247,16 @@ if (submitted or confirm_submitted) and not form_disabled:
     
     if confirm_submitted:
         lock_today(formatted_date)
-        
-        # Send automated WhatsApp Report
         todays_log = pd.DataFrame(new_rows)
         success, msg = send_whatsapp_report(formatted_date, current_user, todays_log)
         
         if success:
-            st.success("📲 Tasks confirmed & locked! WhatsApp report sent automatically to Admin.")
+            st.success("📲 Tasks confirmed & locked! WhatsApp report sent successfully.")
         else:
-            st.error(f"Tasks saved & locked, BUT WhatsApp message failed to send: {msg}")
+            st.error(f"Tasks saved & locked, BUT WhatsApp failed: {msg}")
     else:
         st.success("Tasks saved successfully!")
 
-# Log View Header & Admin Control Actions
 if is_admin:
     col_header, col_unlock, col_reset = st.columns([3, 1, 1])
     with col_header:
@@ -273,7 +269,7 @@ if is_admin:
             st.rerun()
             
     with col_reset:
-        if st.button("🗑️️ Reset All History", type="secondary", use_container_width=True):
+        if st.button("🗑️ Reset All History", type="secondary", use_container_width=True):
             if os.path.exists(EXCEL_FILE):
                 os.remove(EXCEL_FILE)
             unlock_today(formatted_date)
@@ -284,9 +280,8 @@ else:
 
 if is_locked:
     if is_admin:
-        st.warning("🔒 Tasks are currently locked for regular users. As Admin, you can click '🔓 Unlock Today' or '🗑️ Reset All History' above to restore access.")
+        st.warning("🔒 Tasks are currently locked for regular users.")
     else:
-        st.info("🔒 Tasks have been confirmed for today. Reset and form editing are locked for your account.")
+        st.info("🔒 Tasks have been confirmed for today.")
 
-# Display Task History Table
 st.dataframe(df, width="stretch")
