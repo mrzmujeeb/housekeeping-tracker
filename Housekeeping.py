@@ -3,9 +3,13 @@ import pandas as pd
 import datetime
 import os
 import json
+from zoneinfo import ZoneInfo
 
 EXCEL_FILE = "Housekeeping_Daily_Log.xlsx"
 STATUS_FILE = "lock_status.json"
+
+# Define IST Timezone
+IST = ZoneInfo("Asia/Kolkata")
 
 # Set page layout to wide
 st.set_page_config(page_title="Housekeeping Tracker", layout="wide")
@@ -127,8 +131,9 @@ if os.path.exists(EXCEL_FILE):
 else:
     df = pd.DataFrame(columns=["Sl. No", "Date", "Day", "Task Name", "Status", "Timestamp", "Logged By"])
 
-# Date Selection (Locked strictly to today)
-today = datetime.date.today()
+# Date Selection using IST date
+now_ist = datetime.datetime.now(IST)
+today = now_ist.date()
 formatted_date = today.strftime("%d-%m-%Y")
 formatted_day = today.strftime("%A")
 
@@ -145,7 +150,6 @@ selected_date = st.date_input(
 
 st.subheader(f"Tasks for {formatted_date} ({formatted_day})")
 
-# Form with 3-Column Layout
 # Form inputs are disabled for non-admins if locked
 form_disabled = is_locked and not is_admin
 
@@ -195,7 +199,9 @@ with st.form("task_form"):
 
 # Handle Data Saving
 if (submitted or confirm_submitted) and not form_disabled:
-    timestamp = datetime.datetime.now().strftime("%I:%M:%S %p")
+    # Captures current time strictly in IST
+    ist_time = datetime.datetime.now(IST)
+    timestamp = ist_time.strftime("%I:%M:%S %p")
     new_rows = []
     
     for task_name, status in task_responses.items():
