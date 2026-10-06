@@ -46,6 +46,18 @@ def lock_today(today_str):
     with open(STATUS_FILE, "w") as f:
         json.dump(data, f)
 
+# Function to unlock today
+def unlock_today(today_str):
+    if os.path.exists(STATUS_FILE):
+        try:
+            with open(STATUS_FILE, "r") as f:
+                data = json.load(f)
+            data[today_str] = False
+            with open(STATUS_FILE, "w") as f:
+                json.dump(data, f)
+        except Exception:
+            pass
+
 # LOGIN PAGE LOGIC
 if not st.session_state.authenticated:
     st.markdown("<h1 style='text-align: center;'>🔐 Housekeeping Login</h1>", unsafe_allow_html=True)
@@ -61,7 +73,7 @@ if not st.session_state.authenticated:
                 user_key = username_input.strip().lower()
                 if user_key in USER_CREDENTIALS and USER_CREDENTIALS[user_key] == password_input:
                     st.session_state.authenticated = True
-                    st.session_state.username = username_input
+                    st.session_state.username = user_key
                     st.success(f"Welcome, {username_input}!")
                     st.rerun()
                 else:
@@ -69,8 +81,13 @@ if not st.session_state.authenticated:
     st.stop()  # Halt execution until authenticated
 
 # MAIN APPLICATION (AUTHENTICATED)
-# Sidebar Logout Button
-st.sidebar.markdown(f"**Logged in as:** `{st.session_state.username}`")
+current_user = st.session_state.username
+is_admin = (current_user == "admin")
+
+# Sidebar Logout & Role Info
+st.sidebar.markdown(f"**Logged in as:** `{current_user.upper()}`")
+if is_admin:
+    st.sidebar.success("👑 Admin Mode Active")
 if st.sidebar.button("Logout", type="secondary"):
     st.session_state.authenticated = False
     st.session_state.username = None
@@ -129,6 +146,9 @@ selected_date = st.date_input(
 st.subheader(f"Tasks for {formatted_date} ({formatted_day})")
 
 # Form with 3-Column Layout
+# Form inputs are disabled for non-admins if locked
+form_disabled = is_locked and not is_admin
+
 with st.form("task_form"):
     task_responses = {}
     
@@ -141,7 +161,7 @@ with st.form("task_form"):
             task_responses[task["name"]] = st.selectbox(
                 f"{task['name']}",
                 task["options"],
-                disabled=is_locked
+                disabled=form_disabled
             )
 
     # Center Column
@@ -151,7 +171,7 @@ with st.form("task_form"):
             task_responses[task["name"]] = st.selectbox(
                 f"{task['name']}",
                 task["options"],
-                disabled=is_locked
+                disabled=form_disabled
             )
 
     # Right Column
@@ -161,7 +181,7 @@ with st.form("task_form"):
             task_responses[task["name"]] = st.selectbox(
                 f"{task['name']}",
                 task["options"],
-                disabled=is_locked
+                disabled=form_disabled
             )
 
     st.markdown("<br>", unsafe_allow_html=True)
@@ -169,12 +189,12 @@ with st.form("task_form"):
     # Dual buttons inside form
     btn_col1, btn_col2 = st.columns(2)
     with btn_col1:
-        submitted = st.form_submit_button("Save Current Selection", use_container_width=True, disabled=is_locked)
+        submitted = st.form_submit_button("Save Current Selection", use_container_width=True, disabled=form_disabled)
     with btn_col2:
-        confirm_submitted = st.form_submit_button("✅ CONFIRM ALL TASKS", type="primary", use_container_width=True, disabled=is_locked)
+        confirm_submitted = st.form_submit_button("✅ CONFIRM ALL TASKS", type="primary", use_container_width=True, disabled=form_disabled)
 
 # Handle Data Saving
-if (submitted or confirm_submitted) and not is_locked:
+if (submitted or confirm_submitted) and not form_disabled:
     timestamp = datetime.datetime.now().strftime("%I:%M:%S %p")
     new_rows = []
     
@@ -187,7 +207,7 @@ if (submitted or confirm_submitted) and not is_locked:
             "Task Name": task_name,
             "Status": status,
             "Timestamp": timestamp,
-            "Logged By": st.session_state.username
+            "Logged By": current_user
         })
     
     df = pd.concat([df, pd.DataFrame(new_rows)], ignore_index=True)
@@ -195,27 +215,39 @@ if (submitted or confirm_submitted) and not is_locked:
     
     if confirm_submitted:
         lock_today(formatted_date)
-        st.success("Tasks confirmed and locked! Reset is now permanently disabled for today.")
+        st.success("Tasks confirmed and locked!")
     else:
         st.success("Tasks saved successfully!")
     
     st.rerun()
 
-# Log View Header & Reset Action
-col_header, col_reset = st.columns([4, 1])
-
-with col_header:
+# Log View Header & Admin Control Actions
+if is_admin:
+    col_header, col_unlock, col_reset = st.columns([3, 1, 1])
+    with col_header:
+        st.subheader("Task History")
+    
+    with col_unlock:
+        if st.button("🔓 Unlock Today", type="secondary", use_container_width=True, disabled=not is_locked):
+            unlock_today(formatted_date)
+            st.success("Unlocked today's log for all users!")
+            st.rerun()
+            
+    with col_reset:
+        if st.button("🗑️ Reset All History", type="secondary", use_container_width=True):
+            if os.path.exists(EXCEL_FILE):
+                os.remove(EXCEL_FILE)
+            unlock_today(formatted_date)
+            st.success("Task history cleared & unlocked!")
+            st.rerun()
+else:
     st.subheader("Task History")
 
-with col_reset:
-    if st.button("🗑️ Reset All History", type="secondary", use_container_width=True, disabled=is_locked):
-        if os.path.exists(EXCEL_FILE):
-            os.remove(EXCEL_FILE)
-        st.success("Task history cleared!")
-        st.rerun()
-
 if is_locked:
-    st.info("🔒 Tasks have been confirmed for today. Reset function and editing are permanently locked for today.")
+    if is_admin:
+        st.warning("🔒 Tasks are currently locked for regular users. As Admin, you can click '🔓 Unlock Today' or '🗑️ Reset All History' above to restore access.")
+    else:
+        st.info("🔒 Tasks have been confirmed for today. Reset and form editing are locked for your account.")
 
 # Display Task History Table
 st.dataframe(df, width="stretch")
