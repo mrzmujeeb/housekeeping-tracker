@@ -133,7 +133,8 @@ with st.form("task_form"):
 
 # Handle Data Saving
 if (submitted or confirm_submitted) and not is_locked:
-    timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+    # Captures current clock time in 12-hour AM/PM format
+    timestamp = datetime.datetime.now().strftime("%I:%M:%S %p")
     new_rows = []
     
     for task_name, status in task_responses.items():
@@ -162,17 +163,4 @@ if (submitted or confirm_submitted) and not is_locked:
 col_header, col_reset = st.columns([4, 1])
 
 with col_header:
-    st.subheader("Task History")
-
-with col_reset:
-    if st.button("🗑️ Reset All History", type="secondary", use_container_width=True, disabled=is_locked):
-        if os.path.exists(EXCEL_FILE):
-            os.remove(EXCEL_FILE)
-        st.success("Task history cleared!")
-        st.rerun()
-
-if is_locked:
-    st.info("🔒 Tasks have been confirmed for today. Reset function and editing are permanently locked for today.")
-
-# Display Task History Table
-st.dataframe(df, width="stretch")
+    st.subheader("
