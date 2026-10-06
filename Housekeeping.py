@@ -83,8 +83,8 @@ def send_whatsapp_report(date_str, user_name, task_data):
 
         message = client.messages.create(
             from_=twilio_number,
-            body=message_body,
-            to=target_number
+            to=target_number,
+            body=str(message_body)  # Explicitly stringified payload
         )
         return True, message.sid
     except Exception as e:
@@ -273,7 +273,7 @@ if is_admin:
             st.rerun()
             
     with col_reset:
-        if st.button("🗑️ Reset All History", type="secondary", use_container_width=True):
+        if st.button("🗑️️ Reset All History", type="secondary", use_container_width=True):
             if os.path.exists(EXCEL_FILE):
                 os.remove(EXCEL_FILE)
             unlock_today(formatted_date)
