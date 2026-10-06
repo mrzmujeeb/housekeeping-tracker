@@ -280,4 +280,13 @@ if is_admin:
             st.success("Task history cleared & unlocked!")
             st.rerun()
 else:
-    st.subheader("Task History
+    st.subheader("Task History")
+
+if is_locked:
+    if is_admin:
+        st.warning("🔒 Tasks are currently locked for regular users. As Admin, you can click '🔓 Unlock Today' or '🗑️ Reset All History' above to restore access.")
+    else:
+        st.info("🔒 Tasks have been confirmed for today. Reset and form editing are locked for your account.")
+
+# Display Task History Table
+st.dataframe(df, width="stretch")
