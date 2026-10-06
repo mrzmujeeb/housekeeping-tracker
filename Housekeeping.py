@@ -63,42 +63,30 @@ def unlock_today(today_str):
         except Exception:
             pass
 
-# Function to send WhatsApp message via Twilio with ContentSid Fallback
+# Function to send WhatsApp message via Twilio (Requires active 24h conversation window)
 def send_whatsapp_report(date_str, user_name, task_data):
     try:
         account_sid = st.secrets["TWILIO_ACCOUNT_SID"]
         auth_token = st.secrets["TWILIO_AUTH_TOKEN"]
-        twilio_number = st.secrets["TWILIO_WHATSAPP_NUMBER"]
-        target_number = st.secrets["MY_WHATSAPP_NUMBER"]
+        twilio_number = st.secrets["TWILIO_WHATSAPP_NUMBER"]  # "whatsapp:+17372508034"
+        target_number = st.secrets["MY_WHATSAPP_NUMBER"]      # "whatsapp:+91XXXXXXXXXX"
 
         client = Client(account_sid, auth_token)
 
-        summary_items = []
+        message_body = f"📋 *Housekeeping Daily Report*\n"
+        message_body += f"📅 *Date:* {date_str}\n"
+        message_body += f"👤 *Logged By:* {user_name}\n\n"
+        message_body += "*Task Summary:*\n"
+
         for _, row in task_data.iterrows():
-            summary_items.append(f"• {row['Task Name']}: {row['Status']}")
-        tasks_text = "\n".join(summary_items)
+            message_body += f"• {row['Task Name']}: *{row['Status']}*\n"
 
-        message_body = f"📋 *Housekeeping Daily Report*\n📅 Date: {date_str}\n👤 Logged By: {user_name}\n\n*Tasks:*\n{tasks_text}"
-
-        try:
-            message = client.messages.create(
-                from_=twilio_number,
-                to=target_number,
-                body=message_body
-            )
-            return True, message.sid
-        except Exception as inner_e:
-            if "ContentSid" in str(inner_e):
-                message = client.messages.create(
-                    from_=twilio_number,
-                    to=target_number,
-                    content_sid="HX229f57a4e7f1f0a8edcf4193b2a59a7f",
-                    content_variables=json.dumps({"1": user_name, "2": date_str})
-                )
-                return True, message.sid
-            else:
-                raise inner_e
-
+        message = client.messages.create(
+            from_=twilio_number,
+            to=target_number,
+            body=str(message_body)
+        )
+        return True, message.sid
     except Exception as e:
         return False, str(e)
 
