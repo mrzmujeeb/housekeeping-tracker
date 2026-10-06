@@ -68,7 +68,7 @@ def send_whatsapp_report(date_str, user_name, task_data):
     try:
         account_sid = st.secrets["TWILIO_ACCOUNT_SID"]
         auth_token = st.secrets["TWILIO_AUTH_TOKEN"]
-        twilio_number = st.secrets["TWILIO_WHATSAPP_NUMBER"]  # e.g., "whatsapp:+14155238886"
+        twilio_number = st.secrets["TWILIO_WHATSAPP_NUMBER"]  # e.g., "whatsapp:+17372508034"
         target_number = st.secrets["MY_WHATSAPP_NUMBER"]      # e.g., "whatsapp:+91XXXXXXXXXX"
 
         client = Client(account_sid, auth_token)
@@ -248,19 +248,17 @@ if (submitted or confirm_submitted) and not form_disabled:
     
     if confirm_submitted:
         lock_today(formatted_date)
-        st.success("Tasks confirmed and locked!")
         
         # Send automated WhatsApp Report
         todays_log = pd.DataFrame(new_rows)
         success, msg = send_whatsapp_report(formatted_date, current_user, todays_log)
+        
         if success:
-            st.success("📲 WhatsApp report sent automatically to Admin!")
+            st.success("📲 Tasks confirmed & locked! WhatsApp report sent automatically to Admin.")
         else:
-            st.warning(f"Could not send WhatsApp report: {msg}")
+            st.error(f"Tasks saved & locked, BUT WhatsApp message failed to send: {msg}")
     else:
         st.success("Tasks saved successfully!")
-    
-    st.rerun()
 
 # Log View Header & Admin Control Actions
 if is_admin:
@@ -282,13 +280,4 @@ if is_admin:
             st.success("Task history cleared & unlocked!")
             st.rerun()
 else:
-    st.subheader("Task History")
-
-if is_locked:
-    if is_admin:
-        st.warning("🔒 Tasks are currently locked for regular users. As Admin, you can click '🔓 Unlock Today' or '🗑️ Reset All History' above to restore access.")
-    else:
-        st.info("🔒 Tasks have been confirmed for today. Reset and form editing are locked for your account.")
-
-# Display Task History Table
-st.dataframe(df, width="stretch")
+    st.subheader("Task History
