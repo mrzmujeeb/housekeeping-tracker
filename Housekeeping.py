@@ -7,6 +7,21 @@ import json
 EXCEL_FILE = "Housekeeping_Daily_Log.xlsx"
 STATUS_FILE = "lock_status.json"
 
+# Set page layout to wide
+st.set_page_config(page_title="Housekeeping Tracker", layout="wide")
+
+# User Authentication Database
+USER_CREDENTIALS = {
+    "ramesh": "ramesh",
+    "admin": "admin"
+}
+
+# Initialize authentication state in session state
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+if "username" not in st.session_state:
+    st.session_state.username = None
+
 # Function to check if today is locked
 def is_today_locked(today_str):
     if os.path.exists(STATUS_FILE):
@@ -31,6 +46,36 @@ def lock_today(today_str):
     with open(STATUS_FILE, "w") as f:
         json.dump(data, f)
 
+# LOGIN PAGE LOGIC
+if not st.session_state.authenticated:
+    st.markdown("<h1 style='text-align: center;'>🔐 Housekeeping Login</h1>", unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        with st.form("login_form"):
+            username_input = st.text_input("Username")
+            password_input = st.text_input("Password", type="password")
+            login_submitted = st.form_submit_button("Login", use_container_width=True, type="primary")
+            
+            if login_submitted:
+                user_key = username_input.strip().lower()
+                if user_key in USER_CREDENTIALS and USER_CREDENTIALS[user_key] == password_input:
+                    st.session_state.authenticated = True
+                    st.session_state.username = username_input
+                    st.success(f"Welcome, {username_input}!")
+                    st.rerun()
+                else:
+                    st.error("Invalid Username or Password")
+    st.stop()  # Halt execution until authenticated
+
+# MAIN APPLICATION (AUTHENTICATED)
+# Sidebar Logout Button
+st.sidebar.markdown(f"**Logged in as:** `{st.session_state.username}`")
+if st.sidebar.button("Logout", type="secondary"):
+    st.session_state.authenticated = False
+    st.session_state.username = None
+    st.rerun()
+
 # Grouping tasks logically into 3 sections
 LEFT_TASKS = [
     {"name": "Chairperson Room Door", "options": ["Closed", "Open"]},
@@ -53,9 +98,6 @@ RIGHT_TASKS = [
     {"name": "Colapsable Door to SCN", "options": ["OPEN", "LOCKED"]},
 ]
 
-# Set page layout to wide
-st.set_page_config(page_title="Housekeeping Tracker", layout="wide")
-
 # Centered Title
 st.markdown(
     "<h1 style='text-align: center;'>🧹 Housekeeping Task Management</h1>", 
@@ -66,7 +108,7 @@ st.markdown(
 if os.path.exists(EXCEL_FILE):
     df = pd.read_excel(EXCEL_FILE)
 else:
-    df = pd.DataFrame(columns=["Sl. No", "Date", "Day", "Task Name", "Status", "Timestamp"])
+    df = pd.DataFrame(columns=["Sl. No", "Date", "Day", "Task Name", "Status", "Timestamp", "Logged By"])
 
 # Date Selection (Locked strictly to today)
 today = datetime.date.today()
@@ -133,7 +175,6 @@ with st.form("task_form"):
 
 # Handle Data Saving
 if (submitted or confirm_submitted) and not is_locked:
-    # 12-hour AM/PM Clock Timestamp
     timestamp = datetime.datetime.now().strftime("%I:%M:%S %p")
     new_rows = []
     
@@ -145,7 +186,8 @@ if (submitted or confirm_submitted) and not is_locked:
             "Day": formatted_day,
             "Task Name": task_name,
             "Status": status,
-            "Timestamp": timestamp
+            "Timestamp": timestamp,
+            "Logged By": st.session_state.username
         })
     
     df = pd.concat([df, pd.DataFrame(new_rows)], ignore_index=True)
