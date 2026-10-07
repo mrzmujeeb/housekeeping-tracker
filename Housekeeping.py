@@ -63,28 +63,29 @@ def unlock_today(today_str):
         except Exception:
             pass
 
-# Function to send WhatsApp message via Twilio
+# Function to send WhatsApp message via Twilio using standard Sandbox ContentSid
 def send_whatsapp_report(date_str, user_name, task_data):
     try:
         account_sid = st.secrets["TWILIO_ACCOUNT_SID"]
         auth_token = st.secrets["TWILIO_AUTH_TOKEN"]
-        twilio_number = st.secrets["TWILIO_WHATSAPP_NUMBER"]  # e.g., "whatsapp:+17372508034"
-        target_number = st.secrets["MY_WHATSAPP_NUMBER"]      # e.g., "whatsapp:+919611676450"
+        twilio_number = st.secrets["TWILIO_WHATSAPP_NUMBER"]  # "whatsapp:+17372508034"
+        target_number = st.secrets["MY_WHATSAPP_NUMBER"]      # "whatsapp:+919611676450"
 
         client = Client(account_sid, auth_token)
 
-        # Build task summary string
-        tasks_text = ""
-        for _, row in task_data.iterrows():
-            tasks_text += f"• {row['Task Name']}: *{row['Status']}*\n"
+        # Build concise task summary string for template parameter
+        tasks_list = [f"{row['Task Name']}: {row['Status']}" for _, row in task_data.iterrows()]
+        tasks_summary = ", ".join(tasks_list)
 
-        full_message = f"📋 *Housekeeping Daily Report*\n📅 *Date:* {date_str}\n👤 *Logged By:* {user_name}\n\n*Task Summary:*\n{tasks_text}"
-
-        # Ensure ONLY body, from_, and to are passed
+        # Standard Twilio Sandbox Template SID required for sandbox outbound API messaging
         message = client.messages.create(
-            body=full_message,
             from_=twilio_number,
-            to=target_number
+            to=target_number,
+            content_sid="HXb5b62575e6e4ff6129ad7c8efe1f983e",
+            content_variables=json.dumps({
+                "1": f"{date_str} (by {user_name})",
+                "2": tasks_summary
+            })
         )
         return True, message.sid
     except Exception as e:
