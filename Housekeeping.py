@@ -63,28 +63,28 @@ def unlock_today(today_str):
         except Exception:
             pass
 
-# Function to send WhatsApp message via Twilio (Requires active 24h conversation window)
+# Function to send WhatsApp message via Twilio
 def send_whatsapp_report(date_str, user_name, task_data):
     try:
         account_sid = st.secrets["TWILIO_ACCOUNT_SID"]
         auth_token = st.secrets["TWILIO_AUTH_TOKEN"]
-        twilio_number = st.secrets["TWILIO_WHATSAPP_NUMBER"]  # "whatsapp:+17372508034"
-        target_number = st.secrets["MY_WHATSAPP_NUMBER"]      # "whatsapp:+91XXXXXXXXXX"
+        twilio_number = st.secrets["TWILIO_WHATSAPP_NUMBER"]  # e.g., "whatsapp:+17372508034"
+        target_number = st.secrets["MY_WHATSAPP_NUMBER"]      # e.g., "whatsapp:+919611676450"
 
         client = Client(account_sid, auth_token)
 
-        message_body = f"📋 *Housekeeping Daily Report*\n"
-        message_body += f"📅 *Date:* {date_str}\n"
-        message_body += f"👤 *Logged By:* {user_name}\n\n"
-        message_body += "*Task Summary:*\n"
-
+        # Build task summary string
+        tasks_text = ""
         for _, row in task_data.iterrows():
-            message_body += f"• {row['Task Name']}: *{row['Status']}*\n"
+            tasks_text += f"• {row['Task Name']}: *{row['Status']}*\n"
 
+        full_message = f"📋 *Housekeeping Daily Report*\n📅 *Date:* {date_str}\n👤 *Logged By:* {user_name}\n\n*Task Summary:*\n{tasks_text}"
+
+        # Ensure ONLY body, from_, and to are passed
         message = client.messages.create(
+            body=full_message,
             from_=twilio_number,
-            to=target_number,
-            body=str(message_body)
+            to=target_number
         )
         return True, message.sid
     except Exception as e:
@@ -272,4 +272,4 @@ if is_locked:
     else:
         st.info("🔒 Tasks have been confirmed for today.")
 
-st.dataframe(df, width="stretch")
+st.dataframe(df, use_container_width=True)
