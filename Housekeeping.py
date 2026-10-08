@@ -86,7 +86,7 @@ def send_whatsapp_report(date_str, user_name, task_data):
         message = client.messages.create(
             from_=twilio_number,
             to=target_number,
-            content_sid="HX_PASTE_YOUR_ACTIVE_SID_HERE",
+            content_sid="HX091cffb3963d2a648b1d3d066520700d",
             content_variables=json.dumps(payload_vars)
         )
         return True, message.sid
