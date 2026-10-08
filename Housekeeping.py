@@ -63,31 +63,25 @@ def unlock_today(today_str):
         except Exception:
             pass
 
-# Function to send WhatsApp report using valid Twilio Sandbox Template
+# Function to send WhatsApp report using direct body text (No Template Required)
 def send_whatsapp_report(date_str, user_name, task_data):
     try:
         account_sid = st.secrets["TWILIO_ACCOUNT_SID"]
         auth_token = st.secrets["TWILIO_AUTH_TOKEN"]
-        twilio_number = st.secrets["TWILIO_WHATSAPP_NUMBER"]  # "whatsapp:+17372508034"
-        target_number = st.secrets["MY_WHATSAPP_NUMBER"]      # "whatsapp:+919611676450"
-
+        twilio_number = st.secrets["TWILIO_WHATSAPP_NUMBER"]  # e.g., "whatsapp:+14155238886"
+        target_number = st.secrets["MY_WHATSAPP_NUMBER"]      # e.g., "whatsapp:+919611676450"
+        
         client = Client(account_sid, auth_token)
 
-        # Build clean task summary string
-        tasks_list = [f"{row['Task Name']}: {row['Status']}" for _, row in task_data.iterrows()]
-        tasks_summary = ", ".join(tasks_list)
+        # Build clean formatted text report
+        report_text = f"📋 *Housekeeping Log - {date_str}*\nLogged by: *{user_name}*\n\n"
+        for _, row in task_data.iterrows():
+            report_text += f"• *{row['Task Name']}*: {row['Status']}\n"
 
-        payload_vars = {
-            "1": f"{date_str} (by {user_name})",
-            "2": tasks_summary
-        }
-
-        # Paste your active Content SID from Twilio Console -> Messaging -> Send a WhatsApp message
         message = client.messages.create(
             from_=twilio_number,
             to=target_number,
-            content_sid="HX091cffb3963d2a648b1d3d066520700d",
-            content_variables=json.dumps(payload_vars)
+            body=report_text
         )
         return True, message.sid
     except Exception as e:
@@ -118,7 +112,6 @@ if not st.session_state.authenticated:
 # MAIN APPLICATION (AUTHENTICATED)
 current_user = st.session_state.username
 is_admin = (current_user == "admin")
-
 st.sidebar.markdown(f"**Logged in as:** `{current_user.upper()}`")
 if is_admin:
     st.sidebar.success("👑 Admin Mode Active")
@@ -162,7 +155,6 @@ now_ist = datetime.datetime.now(IST)
 today = now_ist.date()
 formatted_date = today.strftime("%d-%m-%Y")
 formatted_day = today.strftime("%A")
-
 is_locked = is_today_locked(formatted_date)
 
 # Fetch current defaults for today if previously saved
@@ -180,13 +172,11 @@ selected_date = st.date_input(
 )
 
 st.subheader(f"Tasks for {formatted_date} ({formatted_day})")
-
 form_disabled = is_locked and not is_admin
 
 with st.form("task_form"):
     task_responses = {}
     col1, col2, col3 = st.columns(3)
-
     with col1:
         st.markdown("### 🚪 Chairperson Area")
         for task in LEFT_TASKS:
@@ -198,7 +188,6 @@ with st.form("task_form"):
                 index=idx,
                 disabled=form_disabled
             )
-
     with col2:
         st.markdown("### 🏢 Office & Staff")
         for task in CENTER_TASKS:
@@ -210,7 +199,6 @@ with st.form("task_form"):
                 index=idx,
                 disabled=form_disabled
             )
-
     with col3:
         st.markdown("### 🚪 Scanning & Services")
         for task in RIGHT_TASKS:
@@ -222,7 +210,6 @@ with st.form("task_form"):
                 index=idx,
                 disabled=form_disabled
             )
-
     st.markdown("<br>", unsafe_allow_html=True)
     
     btn_col1, btn_col2 = st.columns(2)
