@@ -63,31 +63,31 @@ def unlock_today(today_str):
         except Exception:
             pass
 
-# Function to send WhatsApp report using your custom Twilio Content Template
+# Function to send WhatsApp report using Pre-Approved Twilio Sandbox Template
 def send_whatsapp_report(date_str, user_name, task_data):
     try:
         account_sid = st.secrets["TWILIO_ACCOUNT_SID"]
         auth_token = st.secrets["TWILIO_AUTH_TOKEN"]
-        twilio_number = st.secrets["TWILIO_WHATSAPP_NUMBER"]  # e.g., "whatsapp:+17372508034"
-        target_number = st.secrets["MY_WHATSAPP_NUMBER"]      # e.g., "whatsapp:+919611676450"
+        twilio_number = st.secrets["TWILIO_WHATSAPP_NUMBER"]  # "whatsapp:+17372508034"
+        target_number = st.secrets["MY_WHATSAPP_NUMBER"]      # "whatsapp:+919611676450"
 
         client = Client(account_sid, auth_token)
 
-        # Build clean, line-by-line task history string for template variable {{3}}
-        tasks_list = [f"• *{row['Task Name']}*: {row['Status']}" for _, row in task_data.iterrows()]
-        tasks_summary = "\n".join(tasks_list)
+        # Single-line, comma-separated summary without special characters or line breaks
+        tasks_list = [f"{row['Task Name']}: {row['Status']}" for _, row in task_data.iterrows()]
+        tasks_summary = ", ".join(tasks_list)
 
-        # Send message via your custom Content SID
-        # Replace 'HX_YOUR_NEW_CONTENT_SID_HERE' with your actual HX... SID from Twilio
+        payload_vars = {
+            "1": f"{date_str} (by {user_name})",
+            "2": tasks_summary
+        }
+
+        # Standard Pre-Approved Twilio Sandbox Content SID
         message = client.messages.create(
             from_=twilio_number,
             to=target_number,
-            content_sid="HX_YOUR_NEW_CONTENT_SID_HERE",
-            content_variables=json.dumps({
-                "1": date_str,
-                "2": user_name,
-                "3": tasks_summary
-            })
+            content_sid="HXfe5ab5f00277942d4d4200328b4d403c",
+            content_variables=json.dumps(payload_vars)
         )
         return True, message.sid
     except Exception as e:
