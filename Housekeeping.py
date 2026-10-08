@@ -63,7 +63,7 @@ def unlock_today(today_str):
         except Exception:
             pass
 
-# Function to send full Task History via WhatsApp body
+# Function to send WhatsApp report using Twilio Content Template
 def send_whatsapp_report(date_str, user_name, task_data):
     try:
         account_sid = st.secrets["TWILIO_ACCOUNT_SID"]
@@ -73,27 +73,19 @@ def send_whatsapp_report(date_str, user_name, task_data):
 
         client = Client(account_sid, auth_token)
 
-        # Build clean, formatted Task History report
-        report_lines = [
-            "🧹 *HOUSEKEEPING TASK REPORT*",
-            f"📅 *Date:* {date_str}",
-            f"👤 *Logged By:* {user_name}",
-            "-----------------------------------"
-        ]
-        
-        for _, row in task_data.iterrows():
-            report_lines.append(f"• *{row['Task Name']}*: {row['Status']}")
-            
-        report_lines.append("-----------------------------------")
-        report_lines.append("✅ *Status:* Confirmed & Locked")
+        # Build clean formatted task history string for variable 2
+        tasks_list = [f"{row['Task Name']}: {row['Status']}" for _, row in task_data.iterrows()]
+        tasks_summary = " | ".join(tasks_list)
 
-        message_body = "\n".join(report_lines)
-
-        # Send full message body (Requires active 24h WhatsApp sandbox session)
+        # Use standard Twilio Sandbox Content SID
         message = client.messages.create(
             from_=twilio_number,
             to=target_number,
-            body=message_body
+            content_sid="HXfe5ab5f00277942d4d4200328b4d403c",
+            content_variables=json.dumps({
+                "1": f"{date_str} (by {user_name})",
+                "2": tasks_summary
+            })
         )
         return True, message.sid
     except Exception as e:
@@ -108,7 +100,7 @@ if not st.session_state.authenticated:
         with st.form("login_form"):
             username_input = st.text_input("Username")
             password_input = st.text_input("Password", type="password")
-            login_submitted = st.form_submit_button("Login", use_container_width=True, type="primary")
+            login_submitted = st.form_submit_button("Login", width="stretch", type="primary")
             
             if login_submitted:
                 user_key = username_input.strip().lower()
@@ -233,9 +225,9 @@ with st.form("task_form"):
     
     btn_col1, btn_col2 = st.columns(2)
     with btn_col1:
-        submitted = st.form_submit_button("Save Current Selection", use_container_width=True, disabled=form_disabled)
+        submitted = st.form_submit_button("Save Current Selection", width="stretch", disabled=form_disabled)
     with btn_col2:
-        confirm_submitted = st.form_submit_button("✅ CONFIRM ALL TASKS", type="primary", use_container_width=True, disabled=form_disabled)
+        confirm_submitted = st.form_submit_button("✅ CONFIRM ALL TASKS", type="primary", width="stretch", disabled=form_disabled)
 
 if (submitted or confirm_submitted) and not form_disabled:
     ist_time = datetime.datetime.now(IST)
@@ -286,13 +278,13 @@ if is_admin:
         st.subheader("Task History")
     
     with col_unlock:
-        if st.button("🔓 Unlock Today", type="secondary", use_container_width=True, disabled=not is_locked):
+        if st.button("🔓 Unlock Today", type="secondary", width="stretch", disabled=not is_locked):
             unlock_today(formatted_date)
             st.success("Unlocked today's log for all users!")
             st.rerun()
             
     with col_reset:
-        if st.button("🗑️ Reset All History", type="secondary", use_container_width=True):
+        if st.button("🗑️ Reset All History", type="secondary", width="stretch"):
             if os.path.exists(EXCEL_FILE):
                 os.remove(EXCEL_FILE)
             unlock_today(formatted_date)
@@ -307,4 +299,4 @@ if is_locked:
     else:
         st.info("Tasks have been confirmed for today.")
 
-st.dataframe(df, use_container_width=True)
+st.dataframe(df, width="stretch")
