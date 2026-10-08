@@ -63,29 +63,28 @@ def unlock_today(today_str):
         except Exception:
             pass
 
-# Function to send WhatsApp message via Twilio using standard Sandbox ContentSid
+# Function to send direct WhatsApp message via Twilio
 def send_whatsapp_report(date_str, user_name, task_data):
     try:
         account_sid = st.secrets["TWILIO_ACCOUNT_SID"]
         auth_token = st.secrets["TWILIO_AUTH_TOKEN"]
-        twilio_number = st.secrets["TWILIO_WHATSAPP_NUMBER"]  # "whatsapp:+17372508034"
-        target_number = st.secrets["MY_WHATSAPP_NUMBER"]      # "whatsapp:+919611676450"
+        twilio_number = st.secrets["TWILIO_WHATSAPP_NUMBER"]  # e.g., "whatsapp:+17372508034"
+        target_number = st.secrets["MY_WHATSAPP_NUMBER"]      # e.g., "whatsapp:+919611676450"
 
         client = Client(account_sid, auth_token)
 
-        # Build concise task summary string for template parameter
-        tasks_list = [f"{row['Task Name']}: {row['Status']}" for _, row in task_data.iterrows()]
-        tasks_summary = ", ".join(tasks_list)
+        # Build clean formatted report body
+        report_lines = [f"🧹 *Housekeeping Log Report*", f"📅 *Date:* {date_str}", f"👤 *Logged By:* {user_name}", ""]
+        for _, row in task_data.iterrows():
+            report_lines.append(f"• {row['Task Name']}: *{row['Status']}*")
+            
+        message_body = "\n".join(report_lines)
 
-        # Standard Twilio Sandbox Template SID required for sandbox outbound API messaging
+        # Send direct text message (requires active sandbox join)
         message = client.messages.create(
             from_=twilio_number,
             to=target_number,
-            content_sid="HXfe5ab5f00277942d4d4200328b4d403c",
-            content_variables=json.dumps({
-                "1": f"{date_str} (by {user_name})",
-                "2": tasks_summary
-            })
+            body=message_body
         )
         return True, message.sid
     except Exception as e:
@@ -217,10 +216,14 @@ with st.form("task_form"):
 if (submitted or confirm_submitted) and not form_disabled:
     ist_time = datetime.datetime.now(IST)
     timestamp = ist_time.strftime("%I:%M:%S %p")
-    new_rows = []
     
+    # Remove existing entries for today to avoid duplicate accumulation
+    if not df.empty:
+        df = df[df["Date"] != formatted_date]
+        
+    new_rows = []
     for task_name, status in task_responses.items():
-        sl_no = len(df) + 1
+        sl_no = len(df) + 1 + len(new_rows)
         new_rows.append({
             "Sl. No": sl_no,
             "Date": formatted_date,
