@@ -63,7 +63,7 @@ def unlock_today(today_str):
         except Exception:
             pass
 
-# Function to send WhatsApp report using Pre-Approved Twilio Sandbox Template
+# Function to send WhatsApp report using valid Twilio Sandbox Template
 def send_whatsapp_report(date_str, user_name, task_data):
     try:
         account_sid = st.secrets["TWILIO_ACCOUNT_SID"]
@@ -73,7 +73,7 @@ def send_whatsapp_report(date_str, user_name, task_data):
 
         client = Client(account_sid, auth_token)
 
-        # Single-line, comma-separated summary without special characters or line breaks
+        # Build clean task summary string
         tasks_list = [f"{row['Task Name']}: {row['Status']}" for _, row in task_data.iterrows()]
         tasks_summary = ", ".join(tasks_list)
 
@@ -82,11 +82,11 @@ def send_whatsapp_report(date_str, user_name, task_data):
             "2": tasks_summary
         }
 
-        # Standard Pre-Approved Twilio Sandbox Content SID
+        # Paste your active Content SID from Twilio Console -> Messaging -> Send a WhatsApp message
         message = client.messages.create(
             from_=twilio_number,
             to=target_number,
-            content_sid="HXfe5ab5f00277942d4d4200328b4d403c",
+            content_sid="HX_PASTE_YOUR_ACTIVE_SID_HERE",
             content_variables=json.dumps(payload_vars)
         )
         return True, message.sid
