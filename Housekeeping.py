@@ -63,7 +63,7 @@ def unlock_today(today_str):
         except Exception:
             pass
 
-# Function to send direct WhatsApp message via Twilio
+# Function to send WhatsApp report using Twilio Content Template
 def send_whatsapp_report(date_str, user_name, task_data):
     try:
         account_sid = st.secrets["TWILIO_ACCOUNT_SID"]
@@ -73,18 +73,19 @@ def send_whatsapp_report(date_str, user_name, task_data):
 
         client = Client(account_sid, auth_token)
 
-        # Build clean formatted report body
-        report_lines = [f"🧹 *Housekeeping Log Report*", f"📅 *Date:* {date_str}", f"👤 *Logged By:* {user_name}", ""]
-        for _, row in task_data.iterrows():
-            report_lines.append(f"• {row['Task Name']}: *{row['Status']}*")
-            
-        message_body = "\n".join(report_lines)
+        # Build concise task summary string for template parameter
+        tasks_list = [f"{row['Task Name']}: {row['Status']}" for _, row in task_data.iterrows()]
+        tasks_summary = ", ".join(tasks_list)
 
-        # Send direct text message
+        # Use standard Twilio Sandbox Content SID required for WhatsApp outbound messaging
         message = client.messages.create(
             from_=twilio_number,
             to=target_number,
-            body=message_body
+            content_sid="HXfe5ab5f00277942d4d4200328b4d403c",
+            content_variables=json.dumps({
+                "1": f"{date_str} (by {user_name})",
+                "2": tasks_summary
+            })
         )
         return True, message.sid
     except Exception as e:
