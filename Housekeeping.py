@@ -271,6 +271,6 @@ if is_locked:
     if is_admin:
         st.warning("🔒 Tasks are currently locked for regular users.")
     else:
-        st.info("🔒 Tasks have been confirmed for today.")
+        st.info("Tasks have been confirmed for today.")
 
 st.dataframe(df, use_container_width=True)
