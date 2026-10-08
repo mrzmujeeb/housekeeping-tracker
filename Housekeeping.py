@@ -80,7 +80,7 @@ def send_whatsapp_report(date_str, user_name, task_data):
             
         message_body = "\n".join(report_lines)
 
-        # Send direct text message (requires active sandbox join)
+        # Send direct text message
         message = client.messages.create(
             from_=twilio_number,
             to=target_number,
@@ -162,6 +162,12 @@ formatted_day = today.strftime("%A")
 
 is_locked = is_today_locked(formatted_date)
 
+# Fetch current defaults for today if previously saved
+today_existing = df[df["Date"] == formatted_date] if not df.empty else pd.DataFrame()
+saved_defaults = {}
+if not today_existing.empty:
+    saved_defaults = dict(zip(today_existing["Task Name"], today_existing["Status"]))
+
 selected_date = st.date_input(
     "Select Date", 
     value=today,
@@ -181,27 +187,36 @@ with st.form("task_form"):
     with col1:
         st.markdown("### 🚪 Chairperson Area")
         for task in LEFT_TASKS:
+            default_val = saved_defaults.get(task["name"], task["options"][0])
+            idx = task["options"].index(default_val) if default_val in task["options"] else 0
             task_responses[task["name"]] = st.selectbox(
                 f"{task['name']}",
                 task["options"],
+                index=idx,
                 disabled=form_disabled
             )
 
     with col2:
         st.markdown("### 🏢 Office & Staff")
         for task in CENTER_TASKS:
+            default_val = saved_defaults.get(task["name"], task["options"][0])
+            idx = task["options"].index(default_val) if default_val in task["options"] else 0
             task_responses[task["name"]] = st.selectbox(
                 f"{task['name']}",
                 task["options"],
+                index=idx,
                 disabled=form_disabled
             )
 
     with col3:
         st.markdown("### 🚪 Scanning & Services")
         for task in RIGHT_TASKS:
+            default_val = saved_defaults.get(task["name"], task["options"][0])
+            idx = task["options"].index(default_val) if default_val in task["options"] else 0
             task_responses[task["name"]] = st.selectbox(
                 f"{task['name']}",
                 task["options"],
+                index=idx,
                 disabled=form_disabled
             )
 
@@ -244,10 +259,12 @@ if (submitted or confirm_submitted) and not form_disabled:
         
         if success:
             st.success("📲 Tasks confirmed & locked! WhatsApp report sent successfully.")
+            st.rerun()
         else:
             st.error(f"Tasks saved & locked, BUT WhatsApp failed: {msg}")
     else:
         st.success("Tasks saved successfully!")
+        st.rerun()
 
 if is_admin:
     col_header, col_unlock, col_reset = st.columns([3, 1, 1])
