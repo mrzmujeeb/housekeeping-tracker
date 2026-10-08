@@ -63,7 +63,7 @@ def unlock_today(today_str):
         except Exception:
             pass
 
-# Function to send full Task History via custom WhatsApp body
+# Function to send WhatsApp report using Twilio Content Template SID
 def send_whatsapp_report(date_str, user_name, task_data):
     try:
         account_sid = st.secrets["TWILIO_ACCOUNT_SID"]
@@ -73,27 +73,19 @@ def send_whatsapp_report(date_str, user_name, task_data):
 
         client = Client(account_sid, auth_token)
 
-        # Build clean, line-by-line Task History report
-        report_lines = [
-            "🧹 *HOUSEKEEPING TASK REPORT*",
-            f"📅 *Date:* {date_str}",
-            f"👤 *Logged By:* {user_name}",
-            "-----------------------------------"
-        ]
-        
-        for _, row in task_data.iterrows():
-            report_lines.append(f"• *{row['Task Name']}*: {row['Status']}")
-            
-        report_lines.append("-----------------------------------")
-        report_lines.append("✅ *Status:* Confirmed & Locked")
+        # Build clean formatted task history list for template variable 2
+        tasks_list = [f"{row['Task Name']}: {row['Status']}" for _, row in task_data.iterrows()]
+        tasks_summary = " | ".join(tasks_list)
 
-        message_body = "\n".join(report_lines)
-
-        # Send full message body directly (session active)
+        # Standard Twilio Sandbox Template SID required for WhatsApp outbound messaging
         message = client.messages.create(
             from_=twilio_number,
             to=target_number,
-            body=message_body
+            content_sid="HXfe5ab5f00277942d4d4200328b4d403c",
+            content_variables=json.dumps({
+                "1": f"{date_str} (by {user_name})",
+                "2": tasks_summary
+            })
         )
         return True, message.sid
     except Exception as e:
