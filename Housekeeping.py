@@ -81,7 +81,7 @@ def send_whatsapp_report(date_str, user_name, task_data):
         message = client.messages.create(
             from_=twilio_number,
             to=target_number,
-            content_sid="HXb5b62575e6e4ff6129ad7c8efe1f983e",
+            content_sid="HXfe5ab5f00277942d4d4200328b4d403c",
             content_variables=json.dumps({
                 "1": f"{date_str} (by {user_name})",
                 "2": tasks_summary
