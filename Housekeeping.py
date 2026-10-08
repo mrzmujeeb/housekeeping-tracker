@@ -73,11 +73,11 @@ def send_whatsapp_report(date_str, user_name, task_data):
 
         client = Client(account_sid, auth_token)
 
-        # Build clean formatted task history string for variable 2
+        # Build clean formatted task history string for template variable
         tasks_list = [f"{row['Task Name']}: {row['Status']}" for _, row in task_data.iterrows()]
         tasks_summary = " | ".join(tasks_list)
 
-        # Use standard Twilio Sandbox Content SID
+        # Use standard Twilio Sandbox Content SID required for WhatsApp messaging
         message = client.messages.create(
             from_=twilio_number,
             to=target_number,
