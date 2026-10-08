@@ -255,13 +255,18 @@ if (submitted or confirm_submitted) and not form_disabled:
     if confirm_submitted:
         lock_today(formatted_date)
         todays_log = pd.DataFrame(new_rows)
-        success, msg = send_whatsapp_report(formatted_date, current_user, todays_log)
         
-        if success:
-            st.success("📲 Tasks confirmed & locked! WhatsApp report sent successfully.")
-            st.rerun()
+        # WhatsApp message is ONLY sent if the logged-in user is 'admin'
+        if is_admin:
+            success, msg = send_whatsapp_report(formatted_date, current_user, todays_log)
+            if success:
+                st.success("📲 Tasks confirmed & locked! WhatsApp report sent successfully.")
+                st.rerun()
+            else:
+                st.error(f"Tasks saved & locked, BUT WhatsApp failed: {msg}")
         else:
-            st.error(f"Tasks saved & locked, BUT WhatsApp failed: {msg}")
+            st.success("📲 Tasks confirmed & locked successfully! (WhatsApp report restricted to Admin)")
+            st.rerun()
     else:
         st.success("Tasks saved successfully!")
         st.rerun()
